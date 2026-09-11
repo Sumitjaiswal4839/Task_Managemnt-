@@ -1,0 +1,263 @@
+// Prisma schema for Synchro Collaborative Task Management
+// Normalized multi-tenant workspace architecture strictly mirroring docs/DATABASE_SPEC.md
+// Invariants, referential cascades, Optimistic Concurrency Control, and B-Tree indexes
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  password      String        // Argon2id hash
+  
+  memberships   Membership[]
+  createdTasks  Task[]        @relation("CreatedTasks")
+  assignedTasks Task[]        @relation("AssignedTasks")
+  comments      Comment[]
+  activities    ActivityLog[]
+  notifications Notification[]
+  attachments   Attachment[]
+  watchedTasks  TaskWatcher[]
+  savedViews    SavedView[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  
+  memberships Membership[]
+  tasks       Task[]
+  activities  ActivityLog[]
+  notifications Notification[]
+  savedViews  SavedView[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("workspaces")
+}
+
+model Membership {
+  id          String     @id @default(cuid())
+  
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  role        Role       @default(MEMBER)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@map("memberships")
+}
+
+model Task {
+  id           String        @id @default(cuid())
+  
+  workspaceId  String
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  title        String
+  description  String?
+  status       TaskStatus    @default(TODO)
+  priority     TaskPriority  @default(MEDIUM)
+  dueDate      DateTime?
+  version      Int           @default(1) // Optimistic Concurrency Control
+
+  createdById  String
+  createdBy    User          @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assignedToId String?
+  assignedTo   User?         @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  parentId     String?
+  parentTask   Task?         @relation("SubTasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subTasks     Task[]        @relation("SubTasks")
+
+  comments     Comment[]
+  activities   ActivityLog[]
+  attachments  Attachment[]
+  watchers     TaskWatcher[]
+  dependencies TaskDependency[] @relation("TaskDependsOn")
+  dependents   TaskDependency[] @relation("TaskDependent")
+  notifications Notification[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([workspaceId, status, priority])
+  @@index([workspaceId, assignedToId])
+  @@index([workspaceId, createdAt])
+  @@map("tasks")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@map("comments")
+}
+
+model ActivityLog {
+  id          String     @id @default(cuid())
+  
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  taskId      String
+  task        Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  action      String     // e.g. "TASK_CREATED", "STATUS_UPDATED", "ASSIGNED"
+  metadata    Json?      // Justified in DATABASE_SPEC.md: variable non-relational diffs/snapshots
+
+  createdAt   DateTime   @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([taskId, createdAt])
+  @@map("activity_logs")
+}
+
+model Notification {
+  id          String     @id @default(cuid())
+  
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  actorId     String?
+
+  type        String     // e.g. "TASK_ASSIGNED", "TASK_UPDATED"
+  title       String
+  message     String
+  taskId      String?
+  task        Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  readAt      DateTime?
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([workspaceId, userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model TaskWatcher {
+  taskId      String
+  task        Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime   @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_watchers")
+}
+
+model TaskDependency {
+  id              String   @id @default(cuid())
+
+  taskId          String
+  task            Task     @relation("TaskDependent", fields: [taskId], references: [id], onDelete: Cascade)
+
+  dependsOnTaskId String
+  dependsOnTask   Task     @relation("TaskDependsOn", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  type            String   @default("BLOCKS") // "BLOCKS" or "BLOCKED_BY"
+
+  createdAt       DateTime @default(now())
+
+  @@unique([taskId, dependsOnTaskId])
+  @@map("task_dependencies")
+}
+
+model Attachment {
+  id          String     @id @default(cuid())
+  
+  taskId      String
+  task        Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User       @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  storageKey  String     @unique
+  originalName String
+  mimeType    String
+  size        Int
+
+  createdAt   DateTime   @default(now())
+
+  @@index([taskId])
+  @@map("attachments")
+}
+
+model SavedView {
+  id          String    @id @default(cuid())
+  name        String
+  query       Json      // Filter criteria like status, assignee, priority
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, userId])
+  @@map("saved_views")
+}

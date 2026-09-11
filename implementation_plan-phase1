@@ -1,0 +1,140 @@
+# Implementation Plan - Phase 1: Foundation, Documentation, Scaffolding & Branding
+
+Build an enterprise-grade **Collaborative Task Management Application** ("TaskFlow") following the principles and requirements defined in [Important.md](file:///d:/Codingh/Task%20Managemnt%20System/Important.md) and [Starter.md](file:///d:/Codingh/Task%20Managemnt%20System/Starter.md). 
+
+This plan covers **Phase 1: Project Initialization, Comprehensive System Documentation, Scaffolding, and Visual Identity / Favicon Setup**, while outlining the clear roadmap for subsequent phases.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Tech Stack & Framework Choice**: We will use **Next.js 15 (App Router) + TypeScript + Tailwind CSS + Prisma ORM + NextAuth.js (Auth.js) / JWT sessions + PostgreSQL (via Neon MCP or local/cloud Postgres)**.
+> Node.js version detected: `v24.15.0`, npm version: `11.17.0`.
+
+> [!NOTE]
+> Following **Starter.md Rule #2 ("DO NOT CODE IMMEDIATELY")**, Phase 1 prioritizes complete architectural specifications, database normalization, security/RBAC matrix, and API contracts in dedicated documentation files before application business logic is created.
+
+---
+
+## Proposed Changes
+
+### 1. Comprehensive System Documentation (`docs/`)
+
+Per `Starter.md` (Sections 1-8, 11-12, 38, 48, 60), establish authoritative documentation to govern all development.
+
+#### [NEW] [ARCHITECTURE.md](file:///d:/Codingh/Task%20Managemnt%20System/docs/ARCHITECTURE.md)
+- Complete System Map:
+  - Frontend (Next.js App Router, React Server/Client Components, Tailwind CSS, Lucide icons)
+  - API / Controller Layer (`app/api/*` route handlers with centralized validation and auth wrappers)
+  - Service Layer (`lib/services/*` business logic, transaction boundaries, state machines)
+  - Data Access / Repository Layer (`lib/repositories/*` or typed Prisma client queries)
+  - Database (PostgreSQL with strict constraints and indexes)
+- State management, concurrency defense (optimistic locking, atomic operations), error handling architecture, and observability strategy.
+
+#### [NEW] [DATABASE_SPEC.md](file:///d:/Codingh/Task%20Managemnt%20System/docs/DATABASE_SPEC.md)
+- Formal Relational Schema for PostgreSQL:
+  - `users` (id, name, email, passwordHash, role, createdAt, updatedAt)
+  - `tasks` (id, title, description, status, priority, dueDate, createdById, assignedToId, version, createdAt, updatedAt)
+  - `comments` (id, taskId, authorId, content, createdAt, updatedAt)
+  - `activities` (id, taskId, userId, action, metadata, createdAt)
+- **Normalization Verification**: Explicit 1NF, 2NF, 3NF, and BCNF analysis per `Starter.md` Section 5.
+- **Database Invariants**: Foreign key relationships, `ON DELETE CASCADE` / `SET NULL` policies, check constraints (e.g. enum validation, valid status transitions), and index definitions (`tasks(status, priority)`, `tasks(assignedToId)`, `comments(taskId, createdAt)`).
+
+#### [NEW] [SECURITY_RBAC.md](file:///d:/Codingh/Task%20Managemnt%20System/docs/SECURITY_RBAC.md)
+- **Access Control Matrix**:
+  - Roles: `ADMIN`, `MANAGER`, `MEMBER`
+  - Granular permissions: Task creation, assignment, status transition, editing, deletion, user management, and comment authorship.
+- **Threat Model & OWASP Mitigation Matrix**:
+  - Server-side identity & authorization enforcement (preventing IDOR/BOLA).
+  - Input sanitization (XSS defense).
+  - Parameterized ORM queries (SQLi defense).
+  - CSRF/SameSite cookie strategies and secure HTTP headers.
+  - Rate limiting parameters for auth & mutation endpoints.
+
+#### [NEW] [API_CONTRACTS.md](file:///d:/Codingh/Task%20Managemnt%20System/docs/API_CONTRACTS.md)
+- REST API contracts for all endpoints:
+  - Auth: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+  - Tasks: `GET /api/tasks`, `POST /api/tasks`, `GET /api/tasks/:id`, `PATCH /api/tasks/:id`, `DELETE /api/tasks/:id`
+  - Status & Workflow: `PATCH /api/tasks/:id/status` (state-machine transition)
+  - Comments: `GET /api/tasks/:id/comments`, `POST /api/tasks/:id/comments`, `DELETE /api/comments/:id`
+  - Users: `GET /api/users` (for task assignment, scoped by role)
+  - Activity: `GET /api/tasks/:id/activities`
+- Explicit Request DTOs, Response schemas, and RFC 7807 compliant error format.
+
+---
+
+### 2. Project Scaffolding & Configuration
+
+#### [NEW] Version Control & Environment Setup
+- Initialize Git repository: `git init`
+- `.gitignore` (Node modules, `.next`, `.env*` excluding `.env.example`, coverage, build artifacts)
+- `.env.example` defining:
+  - `DATABASE_URL` (PostgreSQL connection string)
+  - `NEXTAUTH_SECRET` (Cryptographic session secret)
+  - `NEXTAUTH_URL` (`http://localhost:3000`)
+  - `NODE_ENV`
+
+#### [NEW] Scaffolding Next.js App
+- Initialize Next.js project with TypeScript, Tailwind CSS, ESLint, App Router, and `@/` path alias in the workspace root.
+- Install essential baseline dependencies:
+  - `@prisma/client`, `prisma` (Dev)
+  - `zod` (runtime schema validation)
+  - `bcryptjs` + `@types/bcryptjs` (secure password hashing)
+  - `lucide-react` (clean enterprise UI icons)
+  - `clsx`, `tailwind-merge` (UI class utilities)
+
+---
+
+### 3. Visual Identity, Favicon & Metadata Setup
+
+#### [NEW] Favicon & Icons
+- Generate a custom, modern SVG/PNG favicon representing "TaskFlow" (collaborative checkmark & flow node design in vibrant indigo/cyan gradient).
+- Place standard assets in `app/`:
+  - `app/favicon.ico`
+  - `app/icon.svg` / `app/icon.png`
+  - `app/apple-icon.png`
+  - `public/manifest.json` (Web App Manifest with brand color tokens)
+
+#### [MODIFY] [layout.tsx](file:///d:/Codingh/Task%20Managemnt%20System/app/layout.tsx)
+- Set up SEO metadata:
+  - `title: { default: 'TaskFlow | Enterprise Collaborative Task Management', template: '%s | TaskFlow' }`
+  - `description`: Modern collaborative Jira/Trello-style workspace with role-based access control.
+  - OpenGraph, viewport, theme colors, and Google Fonts (`Inter`).
+- Configure root layout with toast notifications placeholder and responsive wrapper.
+
+---
+
+### 4. Prisma Schema Setup
+
+#### [NEW] [prisma/schema.prisma](file:///d:/Codingh/Task%20Managemnt%20System/prisma/schema.prisma)
+- Define PostgreSQL models strictly according to `docs/DATABASE_SPEC.md`:
+  - Enums: `Role` (`ADMIN`, `MANAGER`, `MEMBER`), `TaskStatus` (`TODO`, `IN_PROGRESS`, `DONE`), `TaskPriority` (`LOW`, `MEDIUM`, `HIGH`).
+  - Model definitions: `User`, `Task`, `Comment`, `ActivityLog`.
+  - Indexes, foreign keys, and relations mapped out.
+
+---
+
+## Roadmap for Next Phases
+
+- **Phase 2**: Database Migration, Seed Script (Admin, Manager, Member test users), Prisma Client setup.
+- **Phase 3**: Authentication (Register, Login, Session handling with secure HttpOnly cookies) & RBAC middleware.
+- **Phase 4**: Task Management Engine (CRUD API routes, Server Actions/DTOs with Zod validation, Activity logging).
+- **Phase 5**: UI Components & Dashboard (Enterprise navigation, metric cards, Task list with filters/search, Kanban Board).
+- **Phase 6**: Collaboration Features (Task detail drawer/page, Comment system, real-time activity feed).
+- **Phase 7**: End-to-End Verification, Security Audit against `Starter.md`, Documentation polish, Deployment readiness.
+
+---
+
+## Verification Plan
+
+### Automated Checks
+- `git status` verifies cleanly committed baseline and ignored secrets.
+- `npx tsc --noEmit` verifies strict TypeScript compilation with zero errors.
+- `npm run lint` verifies no ESLint violations.
+- `npx prisma validate` verifies `schema.prisma` syntax and relation validity.
+
+### Manual Verification
+- Run `npm run dev` and navigate to `http://localhost:3000`.
+- Verify browser tab displays the custom TaskFlow favicon, title, and metadata.
+- Verify responsive layout foundation and tailwind styling render without hydration errors.
