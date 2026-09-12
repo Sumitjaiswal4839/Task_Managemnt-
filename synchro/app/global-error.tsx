@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-
+// global-error.tsx: Must include <html> and <body> tags (replaces root layout on crash)
+// No hooks allowed - this gets prerendered by Next.js build
 export default function GlobalError({
   error,
   reset,
@@ -9,10 +9,6 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error("Global Error boundary caught:", error);
-  }, [error]);
-
   return (
     <html lang="en">
       <body
@@ -23,8 +19,9 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "sans-serif",
+          fontFamily: "system-ui, sans-serif",
           padding: "1rem",
+          margin: 0,
         }}
       >
         <div
@@ -49,17 +46,33 @@ export default function GlobalError({
               justifyContent: "center",
               margin: "0 auto 1rem",
               fontSize: 22,
+              lineHeight: "48px",
             }}
           >
             ⚠
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+          <h2
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              marginBottom: 8,
+              marginTop: 0,
+            }}
+          >
             Something went wrong
           </h2>
-          <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 24 }}>
-            {error.message || "An unexpected error occurred."}
+          <p
+            style={{
+              fontSize: 13,
+              color: "#94a3b8",
+              marginBottom: 24,
+            }}
+          >
+            {error?.message || "An unexpected error occurred."}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: 10 }}
+          >
             <button
               onClick={() => reset()}
               style={{
@@ -79,7 +92,9 @@ export default function GlobalError({
             <a
               href="/dashboard"
               style={{
+                display: "block",
                 width: "100%",
+                boxSizing: "border-box",
                 padding: "10px 16px",
                 borderRadius: 8,
                 border: "1px solid #1e293b",
@@ -88,10 +103,10 @@ export default function GlobalError({
                 fontSize: 13,
                 fontWeight: 500,
                 textDecoration: "none",
-                display: "block",
+                textAlign: "center",
               }}
             >
-              Go back to Dashboard
+              Go to Dashboard
             </a>
           </div>
         </div>
