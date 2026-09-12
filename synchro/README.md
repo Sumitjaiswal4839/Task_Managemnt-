@@ -64,6 +64,6 @@ graph TD
 - **End-to-End (E2E) Testing:** Playwright configured for testing complete user journeys across the authentication pipeline and dashboard rendering.
 
 ## 🚀 8. Deployment
-- **Optimized for Vercel:** (Frontend & Serverless APIs).
+- **Optimized for Netlify:** (Frontend & Serverless APIs via Netlify Next.js Runtime).
 - **PostgreSQL Hosting:** Neon DB with connection pooling.
 - **Object Storage:** Cloudflare R2 globally distributed buckets.
