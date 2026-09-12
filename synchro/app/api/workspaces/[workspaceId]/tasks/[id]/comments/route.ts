@@ -14,7 +14,7 @@ export async function POST(
 ) {
   try {
     const user = await getSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const { workspaceId, id } = await params;
 
@@ -29,12 +29,12 @@ export async function POST(
     });
 
     if (!membership) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
     const body = await req.json();
     const result = CommentSchema.safeParse(body);
-    if (!result.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    if (!result.success) return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Invalid data" } }, { status: 400 });
 
     const { content } = result.data;
 
@@ -132,7 +132,7 @@ export async function POST(
     return NextResponse.json({ success: true, data: comment });
   } catch (error) {
     console.error("Comment Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal Server Error" } }, { status: 500 });
   }
 }
 
@@ -142,7 +142,7 @@ export async function GET(
 ) {
   try {
     const user = await getSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const { workspaceId, id } = await params;
 
@@ -182,6 +182,6 @@ export async function GET(
     return NextResponse.json({ success: true, data: comments });
   } catch (error) {
     console.error("Fetch Comments Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal Server Error" } }, { status: 500 });
   }
 }

@@ -9,11 +9,11 @@ export async function POST(
 ) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED" } }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const { workspaceId, id } = await params;
     const membership = await getWorkspaceMembership(session.id, workspaceId);
-    if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
+    if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "You do not have access to this workspace" } }, { status: 403 });
 
     const body = await req.json();
     const { dependsOnTaskId, type } = body;
@@ -36,17 +36,60 @@ export async function POST(
       return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "One or both tasks not found in this workspace" } }, { status: 404 });
     }
 
-    // Check for reverse dependency (Cycle prevention A -> B, B -> A)
-    const reverseDependency = await prisma.taskDependency.findFirst({
-      where: {
-        OR: [
-          { taskId: id, dependsOnTaskId },
-          { taskId: dependsOnTaskId, dependsOnTaskId: id }
-        ]
-      }
+    // Check for deep dependency cycles (A -> B -> C -> A)
+    const allWorkspaceTasks = await prisma.task.findMany({
+      where: { workspaceId },
+      select: { id: true }
+    });
+    const workspaceTaskIds = allWorkspaceTasks.map(t => t.id);
+
+    const allDependencies = await prisma.taskDependency.findMany({
+      where: { taskId: { in: workspaceTaskIds } }
     });
 
-    if (reverseDependency) {
+    const graph = new Map<string, string[]>();
+    for (const tid of workspaceTaskIds) {
+      graph.set(tid, []);
+    }
+
+    for (const dep of allDependencies) {
+      if (dep.type === "BLOCKED_BY") {
+        graph.get(dep.taskId)?.push(dep.dependsOnTaskId);
+      } else if (dep.type === "BLOCKS") {
+        graph.get(dep.dependsOnTaskId)?.push(dep.taskId);
+      }
+    }
+
+    if (type === "BLOCKED_BY") {
+      graph.get(id)?.push(dependsOnTaskId);
+    } else {
+      graph.get(dependsOnTaskId)?.push(id);
+    }
+
+    function hasCycle(node: string, visited: Set<string>, recStack: Set<string>): boolean {
+      if (recStack.has(node)) return true;
+      if (visited.has(node)) return false;
+      visited.add(node);
+      recStack.add(node);
+      const neighbors = graph.get(node) || [];
+      for (const neighbor of neighbors) {
+        if (hasCycle(neighbor, visited, recStack)) return true;
+      }
+      recStack.delete(node);
+      return false;
+    }
+
+    const visited = new Set<string>();
+    const recStack = new Set<string>();
+    let cycleDetected = false;
+    for (const node of workspaceTaskIds) {
+      if (hasCycle(node, visited, recStack)) {
+        cycleDetected = true;
+        break;
+      }
+    }
+
+    if (cycleDetected) {
       return NextResponse.json({ success: false, error: { code: "CONFLICT", message: "A dependency or circular dependency already exists between these two tasks." } }, { status: 409 });
     }
 
@@ -61,6 +104,6 @@ export async function POST(
     return NextResponse.json({ success: true, data: dependency }, { status: 201 });
   } catch (error) {
     console.error("Dependency creation error:", error);
-    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR" } }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Failed to create dependency" } }, { status: 500 });
   }
 }

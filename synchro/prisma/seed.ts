@@ -7,6 +7,11 @@ async function main() {
   console.log("🌱 Seeding Synchro multi-tenant workspace database...");
 
   // Clean existing records in reverse dependency order
+  await prisma.notification.deleteMany();
+  await prisma.savedView.deleteMany();
+  await prisma.taskWatcher.deleteMany();
+  await prisma.taskDependency.deleteMany();
+  await prisma.attachment.deleteMany();
   await prisma.activityLog.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.task.deleteMany();

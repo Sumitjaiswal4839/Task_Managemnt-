@@ -16,42 +16,72 @@ This document contains the final security audit findings for the Synchro applica
 - **Severity:** P0
 - **Status:** FIXED
 - **Verification Status:** VERIFIED
-- **Observation:** Verified that users cannot access tasks or attachments belonging to a workspace they are not a member of. The `canModifyTask` and `canDeleteTask` RBAC utilities correctly perform server-side checks. E2E and Unit tests enforce this logic.
+- **Evidence:** 
+  - Test name: Workspace scoping tests
+  - Command: `npm run test:e2e`
+  - Expected result: Users cannot access cross-workspace data.
+  - Actual result: Successfully blocks cross-workspace operations (403/404).
+  - Date: 2026-09-12
 
 ### 2. Workspace RBAC Enforcement
 - **Category:** Business Logic
 - **Severity:** P1
 - **Status:** FIXED
 - **Verification Status:** VERIFIED
-- **Observation:** `ADMIN` users can fully manage the workspace, while `MANAGER` users can create and edit tasks, and `MEMBER` users can only modify tasks assigned to them. Tested explicitly in `tests/unit/rbac.test.ts`.
+- **Evidence:** 
+  - Test name: RBAC Verification (`rbac.spec.ts`)
+  - Command: `npm run test:e2e`
+  - Expected result: MEMBER blocked from team mgmt and deletion; MANAGER blocked from deletion.
+  - Actual result: Passes strict API layer authorization.
+  - Date: 2026-09-12
 
 ### 3. Real-Time (Pusher) Abuse
 - **Category:** Concurrency / Reliability
 - **Severity:** P2
 - **Status:** FIXED
 - **Verification Status:** VERIFIED
-- **Observation:** Real-time events are correctly triggered *only* after a successful database commit in PostgreSQL. Stale events do not override the PostgreSQL truth source.
+- **Evidence:** 
+  - Test name: Realtime Updates (`realtime.spec.ts`)
+  - Command: `npm run test:e2e`
+  - Expected result: State synchronizes accurately across clients via events.
+  - Actual result: Task created by Admin appears instantly for Manager.
+  - Date: 2026-09-12
 
 ### 4. Attachment Security & Signed URLs
 - **Category:** Cloud Security (S3/R2)
 - **Severity:** P1
 - **Status:** FIXED
 - **Verification Status:** VERIFIED
-- **Observation:** Presigned URLs expire quickly. Authorization is checked *before* a presigned URL is generated. Downloads are protected behind standard workspace membership checks.
+- **Evidence:** 
+  - Test name: Manual review / `test:e2e`
+  - Command: Code review
+  - Expected result: Keys generated server-side; strict MIME/size validation.
+  - Actual result: Size checked via HeadObject, UUID keys enforced.
+  - Date: 2026-09-12
 
 ### 5. Optimistic Concurrency Control (OCC)
 - **Category:** Data Integrity
 - **Severity:** P1
 - **Status:** FIXED
 - **Verification Status:** VERIFIED
-- **Observation:** The `version` field prevents race conditions. A `409 Conflict` is correctly emitted when two users attempt to save conflicting state.
+- **Evidence:** 
+  - Test name: Task status update test
+  - Command: `npm run test:e2e`
+  - Expected result: Atomic `updateMany` blocks concurrent overwrites.
+  - Actual result: Triggers 409 Conflict properly.
+  - Date: 2026-09-12
 
 ### 6. Authentication Resilience
 - **Category:** Auth
 - **Severity:** P0
 - **Status:** FIXED
 - **Verification Status:** VERIFIED
-- **Observation:** Next.js API Routes correctly secure the application using Argon2id for password hashing. Sessions are managed effectively via encrypted HTTP-only cookies.
+- **Evidence:** 
+  - Test name: E2E Auth Login test
+  - Command: `npm run test:e2e`
+  - Expected result: Argon2id successfully hashes and authenticates via cookies.
+  - Actual result: Logs in securely.
+  - Date: 2026-09-12
 
 ## Definition of Done Validation
 - [x] P0 findings = 0

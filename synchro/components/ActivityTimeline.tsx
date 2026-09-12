@@ -5,6 +5,7 @@ export interface Activity {
   id: string;
   action: string;
   createdAt: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: any;
   user: {
     name: string;
@@ -44,15 +45,15 @@ export default function ActivityTimeline({ activities }: { activities: Activity[
   const getActionText = (activity: Activity) => {
     switch (activity.action) {
       case "TASK_CREATED":
-        return <span>created task <strong className="text-slate-200">"{activity.task.title}"</strong></span>;
+        return <span>created task <strong className="text-slate-200">&quot;{activity.task.title}&quot;</strong></span>;
       case "STATUS_UPDATED":
         const from = activity.metadata?.from || "Unknown";
         const to = activity.metadata?.to || "Unknown";
-        return <span>changed status of <strong className="text-slate-200">"{activity.task.title}"</strong> to <strong className="text-emerald-400">{to}</strong></span>;
+        return <span>changed status of <strong className="text-slate-200">&quot;{activity.task.title}&quot;</strong> from <strong className="text-slate-400">{from}</strong> to <strong className="text-emerald-400">{to}</strong></span>;
       case "ASSIGNED":
-        return <span>assigned <strong className="text-slate-200">"{activity.task.title}"</strong> to <strong className="text-amber-400">{activity.metadata?.toName || "someone"}</strong></span>;
+        return <span>assigned <strong className="text-slate-200">&quot;{activity.task.title}&quot;</strong> to <strong className="text-amber-400">{activity.metadata?.toName || "someone"}</strong></span>;
       default:
-        return <span>performed an action on <strong className="text-slate-200">"{activity.task.title}"</strong></span>;
+        return <span>performed an action on <strong className="text-slate-200">&quot;{activity.task.title}&quot;</strong></span>;
     }
   };
 

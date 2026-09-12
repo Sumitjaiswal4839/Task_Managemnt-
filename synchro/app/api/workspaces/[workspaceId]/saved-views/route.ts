@@ -15,13 +15,13 @@ export async function POST(
 ) {
   try {
     const user = await getSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const body = await req.json();
     const result = SavedViewSchema.safeParse(body);
     
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Invalid data", details: result.error.errors } }, { status: 400 });
     }
 
     const { name, query } = result.data;
@@ -53,7 +53,7 @@ export async function POST(
     return NextResponse.json({ success: true, data: savedView });
   } catch (error) {
     console.error("SavedView Create Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal Server Error" } }, { status: 500 });
   }
 }
 
@@ -63,7 +63,7 @@ export async function GET(
 ) {
   try {
     const user = await getSession();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const { workspaceId } = await params;
 
@@ -92,6 +92,6 @@ export async function GET(
     return NextResponse.json({ success: true, data: savedViews });
   } catch (error) {
     console.error("Fetch SavedViews Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal Server Error" } }, { status: 500 });
   }
 }

@@ -41,14 +41,14 @@ export async function GET(
   try {
     const session = await getSession();
     if (!session?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
     }
 
     const { workspaceId, id: taskId } = await context.params;
 
     const membership = await getMembership(session.id, workspaceId);
     if (!membership) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
     const task = await prisma.task.findFirst({
@@ -73,13 +73,13 @@ export async function GET(
     });
 
     if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "Task not found" } }, { status: 404 });
     }
 
     return NextResponse.json(task);
   } catch (error) {
     console.error("GET task error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal server error" } }, { status: 500 });
   }
 }
 
@@ -93,14 +93,14 @@ export async function PATCH(
   try {
     const session = await getSession();
     if (!session?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
     }
 
     const { workspaceId, id: taskId } = await context.params;
 
     const membership = await getMembership(session.id, workspaceId);
     if (!membership) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
     const body = await request.json();
@@ -108,7 +108,7 @@ export async function PATCH(
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid request body", details: parsed.error.flatten() },
+        { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid request body", details: parsed.error.flatten() } },
         { status: 400 }
       );
     }
@@ -121,12 +121,12 @@ export async function PATCH(
     });
 
     if (!existingTask) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "Task not found" } }, { status: 404 });
     }
 
     if (existingTask.version !== data.version) {
       return NextResponse.json(
-        { error: "Task was modified by another user", code: "VERSION_CONFLICT", currentVersion: existingTask.version },
+        { success: false, error: { code: "VERSION_CONFLICT", message: "Task was modified by another user", currentVersion: existingTask.version } },
         { status: 409 }
       );
     }
@@ -137,7 +137,7 @@ export async function PATCH(
       });
       if (!assignee) {
         return NextResponse.json(
-          { error: "Assigned user is not a member of this workspace" },
+          { success: false, error: { code: "VALIDATION_ERROR", message: "Assigned user is not a member of this workspace" } },
           { status: 400 }
         );
       }
@@ -153,12 +153,13 @@ export async function PATCH(
         ...(data.assignedToId !== undefined && { assignedToId: data.assignedToId }),
         ...(data.dueDate !== undefined && { dueDate: data.dueDate ? new Date(data.dueDate) : null }),
         version: { increment: 1 },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     });
 
     if (updatedTask.count !== 1) {
       return NextResponse.json(
-        { error: "Task was modified by another user", code: "VERSION_CONFLICT" },
+        { success: false, error: { code: "VERSION_CONFLICT", message: "Task was modified by another user" } },
         { status: 409 }
       );
     }
@@ -167,7 +168,7 @@ export async function PATCH(
     return NextResponse.json(task);
   } catch (error) {
     console.error("PATCH task error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal server error" } }, { status: 500 });
   }
 }
 
@@ -181,19 +182,19 @@ export async function DELETE(
   try {
     const session = await getSession();
     if (!session?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Unauthorized" } }, { status: 401 });
     }
 
     const { workspaceId, id: taskId } = await context.params;
 
     const membership = await getMembership(session.id, workspaceId);
     if (!membership) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
     if (membership.role !== "ADMIN" && membership.role !== "MANAGER") {
       return NextResponse.json(
-        { error: "You do not have permission to delete tasks" },
+        { success: false, error: { code: "FORBIDDEN", message: "You do not have permission to delete tasks" } },
         { status: 403 }
       );
     }
@@ -204,13 +205,13 @@ export async function DELETE(
     });
 
     if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "Task not found" } }, { status: 404 });
     }
 
     await prisma.task.delete({ where: { id: task.id } });
     return NextResponse.json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     console.error("DELETE task error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal server error" } }, { status: 500 });
   }
 }

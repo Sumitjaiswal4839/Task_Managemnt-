@@ -66,9 +66,29 @@ export async function POST(
 
     // Verify the object actually exists in R2
     const verification = await verifyObjectExists(storageKey);
-    if (!verification.success || !verification.size) {
+    if (!verification.success || !verification.size || !verification.contentType) {
       logger.error("R2 Verification Failed", { storageKey, error: verification.error });
       return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "File not found in storage bucket" } }, { status: 404 });
+    }
+
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    if (verification.size > MAX_SIZE) {
+      logger.error("File exceeds maximum allowed size", { storageKey, size: verification.size });
+      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "File exceeds 10MB limit" } }, { status: 400 });
+    }
+
+    const ALLOWED_MIME_TYPES = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+      "text/plain",
+      "text/csv"
+    ];
+
+    if (!ALLOWED_MIME_TYPES.includes(verification.contentType)) {
+      logger.error("Invalid file content type", { storageKey, contentType: verification.contentType });
+      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Unsupported file type" } }, { status: 400 });
     }
 
     // S3 verification passed, safe to create DB record

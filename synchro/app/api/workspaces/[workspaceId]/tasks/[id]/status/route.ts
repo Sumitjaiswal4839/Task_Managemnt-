@@ -86,28 +86,22 @@ export async function PATCH(
       );
     }
 
-    // Optimistic Concurrency Control (OCC) check
-    if (existingTask.version !== version) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "CONFLICT",
-            message: "This task was modified concurrently by another user. Please refresh.",
-          },
-        },
-        { status: 409 }
-      );
-    }
-
     // Atomic update with OCC increment and activity log
     const updatedTask = await prisma.$transaction(async (tx) => {
-      const task = await tx.task.update({
-        where: { id },
+      const result = await tx.task.updateMany({
+        where: { id, workspaceId, version },
         data: {
           status: nextStatus,
           version: { increment: 1 },
         },
+      });
+
+      if (result.count !== 1) {
+        throw new Error("VERSION_CONFLICT");
+      }
+
+      const task = await tx.task.findUniqueOrThrow({
+        where: { id },
         include: {
           assignedTo: { select: { id: true, name: true, email: true } },
           createdBy: { select: { id: true, name: true, email: true } },
@@ -138,8 +132,21 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, data: updatedTask });
-  } catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     logger.error("Update task status error", { error });
+    if (error.message === "VERSION_CONFLICT") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "CONFLICT",
+            message: "This task was modified concurrently by another user. Please refresh.",
+          },
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { success: false, error: { code: "SERVER_ERROR", message: "Failed to update task status" } },
       { status: 500 }

@@ -9,11 +9,11 @@ export async function POST(
 ) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED" } }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const { workspaceId, id } = await params;
     const membership = await getWorkspaceMembership(session.id, workspaceId);
-    if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
+    if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "You do not have access to this workspace" } }, { status: 403 });
 
     const task = await prisma.task.findFirst({
       where: {
@@ -53,7 +53,7 @@ export async function POST(
     return NextResponse.json({ success: true, message: "Started watching task" });
   } catch (error) {
     console.error("Watch error:", error);
-    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR" } }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal Server Error" } }, { status: 500 });
   }
 }
 
@@ -63,11 +63,11 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED" } }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } }, { status: 401 });
 
     const { workspaceId, id } = await params;
     const membership = await getWorkspaceMembership(session.id, workspaceId);
-    if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
+    if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "You do not have access to this workspace" } }, { status: 403 });
 
     const task = await prisma.task.findFirst({
       where: {
@@ -100,6 +100,6 @@ export async function DELETE(
     return NextResponse.json({ success: true, message: "Stopped watching task" });
   } catch (error) {
     console.error("Unwatch error:", error);
-    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR" } }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Internal Server Error" } }, { status: 500 });
   }
 }

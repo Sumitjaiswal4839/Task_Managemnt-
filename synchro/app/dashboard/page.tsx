@@ -74,6 +74,7 @@ export default function DashboardPage() {
     overdueTasks: number;
     byStatus: Record<string, number>;
     byPriority: Record<string, number>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recentActivity?: any[];
   } | null>(null);
 
@@ -159,9 +160,9 @@ export default function DashboardPage() {
     if (currentWorkspace) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchTasks(currentWorkspace.id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       fetchMembers(currentWorkspace.id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       fetchAnalytics(currentWorkspace.id);
     }
   }, [currentWorkspace, fetchTasks, fetchMembers, fetchAnalytics]);
