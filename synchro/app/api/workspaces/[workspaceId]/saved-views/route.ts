@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { z } from "zod";
 
 const SavedViewSchema = z.object({
@@ -10,10 +10,10 @@ const SavedViewSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { workspaceId: string } }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
-    const user = await getSessionUser();
+    const user = await getSession();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
@@ -24,13 +24,14 @@ export async function POST(
     }
 
     const { name, query } = result.data;
+    const { workspaceId } = await params;
 
     const savedView = await prisma.savedView.create({
       data: {
         name,
         query,
         userId: user.id,
-        workspaceId: params.workspaceId,
+        workspaceId,
       },
     });
 
@@ -43,15 +44,17 @@ export async function POST(
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { workspaceId: string } }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
-    const user = await getSessionUser();
+    const user = await getSession();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { workspaceId } = await params;
 
     const savedViews = await prisma.savedView.findMany({
       where: {
-        workspaceId: params.workspaceId,
+        workspaceId,
         userId: user.id, // Only user's own saved views
       },
       orderBy: { createdAt: "desc" },

@@ -74,6 +74,7 @@ export default function DashboardPage() {
     overdueTasks: number;
     byStatus: Record<string, number>;
     byPriority: Record<string, number>;
+    recentActivity?: any[];
   } | null>(null);
 
   // Create Task Modal State
