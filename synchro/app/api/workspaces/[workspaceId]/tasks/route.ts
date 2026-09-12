@@ -266,7 +266,7 @@ export async function POST(
 
     // Trigger Pusher real-time event
     try {
-      await pusherServer.trigger(`workspace-${workspaceId}`, "task.created", newTask);
+      await pusherServer.trigger(`private-workspace-${workspaceId}`, "task.created", newTask);
     } catch (e) {
       console.error("Pusher error:", e);
     }

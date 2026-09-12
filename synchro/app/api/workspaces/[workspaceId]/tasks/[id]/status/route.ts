@@ -126,7 +126,7 @@ export async function PATCH(
 
     // Trigger Pusher real-time event
     try {
-      await pusherServer.trigger(`workspace-${workspaceId}`, "task.updated", updatedTask);
+      await pusherServer.trigger(`private-workspace-${workspaceId}`, "task.updated", updatedTask);
     } catch (e) {
       console.error("Pusher error:", e);
     }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { z } from "zod";
+import { canModifyTask, canDeleteTask } from "@/lib/rbac";
+import { pusherServer } from "@/lib/pusher";
 
 const updateTaskSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
@@ -103,6 +105,13 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
+    if (!canModifyTask(membership.role)) {
+      return NextResponse.json(
+        { success: false, error: { code: "FORBIDDEN", message: "You do not have permission to modify tasks" } },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const parsed = updateTaskSchema.safeParse(body);
 
@@ -192,7 +201,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
     }
 
-    if (membership.role !== "ADMIN" && membership.role !== "MANAGER") {
+    if (!canDeleteTask(membership.role)) {
       return NextResponse.json(
         { success: false, error: { code: "FORBIDDEN", message: "You do not have permission to delete tasks" } },
         { status: 403 }
@@ -209,6 +218,14 @@ export async function DELETE(
     }
 
     await prisma.task.delete({ where: { id: task.id } });
+
+    // Trigger Pusher real-time event
+    try {
+      await pusherServer.trigger(`private-workspace-${workspaceId}`, "task.deleted", { id: task.id });
+    } catch (e) {
+      console.error("Pusher error:", e);
+    }
+
     return NextResponse.json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     console.error("DELETE task error:", error);

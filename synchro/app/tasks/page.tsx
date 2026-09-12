@@ -147,7 +147,7 @@ export default function KanbanPage() {
     const pusher = getPusherClient();
     if (!pusher) return;
 
-    const channel = pusher.subscribe(`workspace-${currentWorkspace.id}`);
+    const channel = pusher.subscribe(`private-workspace-${currentWorkspace.id}`);
     
     channel.bind("task.created", (newTask: TaskItem) => {
       setTasks((prev) => [newTask, ...prev]);
@@ -157,8 +157,8 @@ export default function KanbanPage() {
       setTasks((prev) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
     });
 
-    channel.bind("task.deleted", (deletedTaskId: string) => {
-      setTasks((prev) => prev.filter(t => t.id !== deletedTaskId));
+    channel.bind("task.deleted", (payload: { id: string }) => {
+      setTasks((prev) => prev.filter(t => t.id !== payload.id));
     });
 
     return () => {

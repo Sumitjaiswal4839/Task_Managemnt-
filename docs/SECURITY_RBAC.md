@@ -74,8 +74,8 @@ This guarantees **zero cross-workspace leakage** and neutralizes IDOR/BOLA attac
 1. **Password Hashing with Argon2id**:
    - Algorithms like plain MD5/SHA-256 or older bcrypt are superseded by **Argon2id** (winner of the Password Hashing Competition).
    - Resistant to side-channel timing attacks and massively parallel GPU/ASIC brute force.
-2. **Database-Backed Sessions**:
-   - Session tokens are stored in the database and linked to signed, encrypted `HttpOnly`, `SameSite=Lax`, and `Secure` cookies.
-   - Revocation: Deleting a session in the database immediately revokes all browser access.
+2. **Custom JWT Authentication**:
+   - Session tokens are custom JSON Web Tokens (JWT) verified using a strong, environment-configured secret.
+   - Tokens are stored in signed, encrypted `HttpOnly`, `SameSite=Lax`, and `Secure` cookies with a 7-day expiration.
 3. **Strict Input Allowlisting**:
    - Every API mutation parses inputs via `.strict()` Zod schemas. Mass assignment (`...req.body`) is strictly prohibited.

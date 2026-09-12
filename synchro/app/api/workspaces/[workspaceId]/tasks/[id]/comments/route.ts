@@ -146,6 +146,18 @@ export async function GET(
 
     const { workspaceId, id } = await params;
 
+    const membership = await prisma.membership.findUnique({
+      where: {
+        userId_workspaceId: {
+          workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Forbidden" } }, { status: 403 });
+    }
     const task = await prisma.task.findFirst({
       where: {
         id,

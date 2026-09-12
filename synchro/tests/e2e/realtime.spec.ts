@@ -33,10 +33,8 @@ test.describe('Realtime Updates', () => {
     await pageA.goto('/tasks');
     await pageB.goto('/tasks');
 
-    // Wait for the board to load on both pages
-    // We expect some initial seeded tasks to be visible
-    await expect(pageA.locator('text=Interactive Kanban Board UI').first()).toBeVisible({ timeout: 15000 });
-    await expect(pageB.locator('text=Interactive Kanban Board UI').first()).toBeVisible({ timeout: 15000 });
+    // We don't need to wait for a specific container to render, as the next expect() 
+    // will wait up to 10s for the specific task text to appear via Realtime Pusher event.
 
     const uniqueTaskName = `Realtime Task ${Date.now()}`;
 

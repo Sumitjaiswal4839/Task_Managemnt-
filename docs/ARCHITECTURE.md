@@ -24,9 +24,8 @@ Synchro enforces a unidirectional dependency flow across five core tiers with ex
                              │ DTOs + Workspace Membership Context
                              ▼
 ┌─────────────────────────────────────────────────────────┐
-│                     Service Layer                       │
-│    (Domain Logic, Invariant Enforcers, State Machine)   │
-│         [Argon2id Hashing + Workspace RBAC Guards]      │
+│              Authorization & Validation                 │
+│         (Zod Validation, lib/rbac.ts, Argon2id)         │
 └────────────────────────────┬────────────────────────────┘
                              │ Atomic Transactions ($transaction)
                              ▼
@@ -55,10 +54,11 @@ Synchro enforces a unidirectional dependency flow across five core tiers with ex
    - Rejects unauthenticated/unauthorized payloads before domain logic execution (`401 Unauthorized` / `403 Forbidden`).
    - Formats responses into standardized RFC 7807 problem details on errors.
 
-3. **Domain Service Layer (`lib/services/`)**:
+3. **Authorization & Domain Logic (`lib/rbac.ts`, `lib/auth.ts`)**:
    - Enforces workspace-level authorization matrix (`ADMIN`, `MANAGER`, `MEMBER`).
+   - Authentication powered by custom JWT tokens stored in `HttpOnly` cookies.
    - Password hashing strictly powered by **Argon2id** (OWASP recommended memory-hard hashing).
-   - Manages state machine transitions (`TODO` ➔ `IN_PROGRESS` ➔ `DONE`) with Optimistic Concurrency Control (`version`).
+   - Route handlers manage state machine transitions (`TODO` ➔ `IN_PROGRESS` ➔ `DONE`) with Optimistic Concurrency Control (`version`).
    - Emits structured `ActivityLog` entries inside atomic transactions (`prisma.$transaction`).
 
 4. **Repository & Data Access Layer (`lib/prisma.ts`)**:
@@ -105,4 +105,9 @@ Synchro enforces a unidirectional dependency flow across five core tiers with ex
     }
   }
   ```
-- **React Error Boundaries**: UI wrapped in graceful error boundaries (`error.tsx`) to prevent whole-page crashes if a widget fails.
+## 5. Rate Limiting
+
+- **In-Memory Rate Limiter Limitation**:
+  - The current rate limit implementation (`lib/security/rate-limit.ts`) uses a local Node.js `Map` for storing request timestamps.
+  - **Limitation**: Because state is stored in memory, rate limits are scoped per individual server instance. In a distributed environment (e.g. multiple serverless functions, Edge nodes, or load-balanced containers), clients may exceed the global limit because each instance maintains its own separate counter.
+  - **Remediation**: For production distributed scaling, this should be swapped out for a centralized Redis-backed store (e.g., using `@upstash/ratelimit` or `ioredis`).

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getWorkspaceMembership } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
-import { generatePresignedGetUrl } from "@/lib/s3";
+import cloudinary from "@/lib/cloudinary";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -46,9 +46,11 @@ export async function GET(
       return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "Attachment not found" } }, { status: 404 });
     }
 
-    const downloadUrl = await generatePresignedGetUrl(attachment.storageKey);
+    const downloadUrl = attachment.storageKey.startsWith("http")
+      ? attachment.storageKey
+      : cloudinary.url(attachment.storageKey, { secure: true, flags: "attachment" });
 
-    // Redirect the user to the secure S3 URL so the file downloads
+    // Redirect the user to the secure Cloudinary URL
     return NextResponse.redirect(downloadUrl);
   } catch (error) {
     logger.error("Download URL generation error", { error });

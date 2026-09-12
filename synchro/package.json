@@ -19,6 +19,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1130.0",
     "@prisma/client": "^6.4.1",
     "argon2": "^0.41.1",
+    "cloudinary": "^2.11.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^4.4.0",

@@ -147,7 +147,7 @@ export default function TaskDetailModal({
     }
   }
 
-  // Handle File Upload via Cloudflare R2 Presigned URLs
+  // Handle File Upload via Cloudinary
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,52 +156,20 @@ export default function TaskDetailModal({
     if (e.target) e.target.value = "";
 
     setUploading(true);
-    const toastId = toast.loading("Preparing upload...");
+    const toastId = toast.loading("Uploading attachment to Cloudinary...");
 
     try {
-      // Step 1: Request pre-signed URL from our server
-      const presignRes = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}/attachments/presign`, {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}/attachments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mimeType: file.type || "application/octet-stream" })
-      });
-      
-      const presignData = await presignRes.json();
-      if (!presignRes.ok || !presignData.success) {
-        throw new Error(presignData.error?.message || "Failed to get upload authorization");
-      }
-
-      const { uploadUrl, storageKey } = presignData.data;
-
-      // Step 2: Upload directly to Cloudflare R2 (S3) bypassing our server
-      toast.loading("Uploading to secure cloud storage...", { id: toastId });
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
-        body: file,
+        body: formData,
       });
 
-      if (!uploadRes.ok) {
-        throw new Error("Failed to upload file to cloud storage");
-      }
-
-      // Step 3: Tell our server the upload succeeded so it verifies & saves metadata
-      toast.loading("Verifying and saving...", { id: toastId });
-      const metaRes = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}/attachments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storageKey,
-          originalName: file.name,
-          mimeType: file.type || "application/octet-stream",
-        })
-      });
-
-      const metaData = await metaRes.json();
-      if (!metaRes.ok || !metaData.success) {
-        throw new Error(metaData.error?.message || "Failed to save file metadata");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || "Failed to upload file");
       }
 
       toast.success("File securely uploaded", { id: toastId });

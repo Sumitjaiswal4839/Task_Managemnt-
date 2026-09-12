@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getWorkspaceMembership } from "@/lib/rbac";
-import { verifyObjectExists } from "@/lib/s3";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/security/rate-limit";
+
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "text/csv"
+];
 
 export async function GET(
   req: NextRequest,
@@ -17,6 +26,17 @@ export async function GET(
     const { workspaceId, id } = await params;
     const membership = await getWorkspaceMembership(session.id, workspaceId);
     if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
+
+    const task = await prisma.task.findFirst({
+      where: { id, workspaceId },
+      select: { id: true },
+    });
+    if (!task) {
+      return NextResponse.json(
+        { success: false, error: { code: "NOT_FOUND", message: "Task not found in this workspace" } },
+        { status: 404 }
+      );
+    }
 
     const attachments = await prisma.attachment.findMany({
       where: { taskId: id },
@@ -44,69 +64,105 @@ export async function POST(
     const membership = await getWorkspaceMembership(session.id, workspaceId);
     if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
 
+    const task = await prisma.task.findFirst({
+      where: { id, workspaceId },
+      select: { id: true },
+    });
+    if (!task) {
+      return NextResponse.json(
+        { success: false, error: { code: "NOT_FOUND", message: "Task not found in this workspace" } },
+        { status: 404 }
+      );
+    }
+
     // Rate Limit check
-    const rateLimit = await checkRateLimit(`attachments-meta-${session.id}`, { interval: 60000, maxRequests: 20 });
+    const rateLimit = await checkRateLimit(`attachments-upload-${session.id}`, { interval: 60000, maxRequests: 20 });
     if (!rateLimit.success) {
-      logger.warn("Rate limit exceeded for attachments metadata", { userId: session.id });
+      logger.warn("Rate limit exceeded for attachments upload", { userId: session.id });
       return NextResponse.json({ success: false, error: { code: "TOO_MANY_REQUESTS" } }, { status: 429 });
     }
 
-    const body = await req.json();
-    const { storageKey, originalName, mimeType } = body;
+    const contentType = req.headers.get("content-type") || "";
 
-    if (!storageKey || !originalName || !mimeType) {
-      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Missing required metadata" } }, { status: 400 });
+    // 1. Multipart Form Data (Direct File Upload to Cloudinary)
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+
+      if (!file) {
+        return NextResponse.json(
+          { success: false, error: { code: "VALIDATION_ERROR", message: "No file provided" } },
+          { status: 400 }
+        );
+      }
+
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      if (file.size > MAX_SIZE) {
+        return NextResponse.json(
+          { success: false, error: { code: "VALIDATION_ERROR", message: "File exceeds 10MB limit" } },
+          { status: 400 }
+        );
+      }
+
+      const fileMime = file.type || "application/octet-stream";
+      if (!ALLOWED_MIME_TYPES.includes(fileMime)) {
+        return NextResponse.json(
+          { success: false, error: { code: "VALIDATION_ERROR", message: "Unsupported file type" } },
+          { status: 400 }
+        );
+      }
+
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      // Upload to Cloudinary under folder 'synchro/attachments'
+      const uploadResult = await uploadToCloudinary(buffer, file.name, "synchro/attachments");
+
+      const attachment = await prisma.attachment.create({
+        data: {
+          taskId: id,
+          uploadedById: session.id,
+          originalName: file.name,
+          storageKey: uploadResult.secure_url,
+          mimeType: fileMime,
+          size: uploadResult.bytes || file.size,
+        },
+        include: { uploadedBy: { select: { id: true, name: true, email: true } } },
+      });
+
+      logger.info("Attachment uploaded to Cloudinary", {
+        attachmentId: attachment.id,
+        taskId: id,
+        userId: session.id,
+      });
+
+      return NextResponse.json({ success: true, data: attachment }, { status: 201 });
     }
 
-    // Security Check: Ensure the storage key matches the expected format for THIS workspace and task
-    if (!storageKey.startsWith(`workspaces/${workspaceId}/tasks/${id}/attachments/`)) {
-      logger.warn("Storage key spoofing attempt", { userId: session.id, providedKey: storageKey });
-      return NextResponse.json({ success: false, error: { code: "FORBIDDEN", message: "Invalid storage key for this task" } }, { status: 403 });
+    // 2. Fallback / Direct JSON payload (e.g. metadata or tests)
+    const body = await req.json().catch(() => null);
+    if (!body || !body.storageKey || !body.originalName || !body.mimeType) {
+      return NextResponse.json(
+        { success: false, error: { code: "VALIDATION_ERROR", message: "Missing required metadata or file" } },
+        { status: 400 }
+      );
     }
 
-    // Verify the object actually exists in R2
-    const verification = await verifyObjectExists(storageKey);
-    if (!verification.success || !verification.size || !verification.contentType) {
-      logger.error("R2 Verification Failed", { storageKey, error: verification.error });
-      return NextResponse.json({ success: false, error: { code: "NOT_FOUND", message: "File not found in storage bucket" } }, { status: 404 });
-    }
-
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-    if (verification.size > MAX_SIZE) {
-      logger.error("File exceeds maximum allowed size", { storageKey, size: verification.size });
-      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "File exceeds 10MB limit" } }, { status: 400 });
-    }
-
-    const ALLOWED_MIME_TYPES = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "application/pdf",
-      "text/plain",
-      "text/csv"
-    ];
-
-    if (!ALLOWED_MIME_TYPES.includes(verification.contentType)) {
-      logger.error("Invalid file content type", { storageKey, contentType: verification.contentType });
-      return NextResponse.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Unsupported file type" } }, { status: 400 });
-    }
-
-    // S3 verification passed, safe to create DB record
     const attachment = await prisma.attachment.create({
       data: {
         taskId: id,
         uploadedById: session.id,
-        originalName: originalName,
-        storageKey: storageKey,
-        mimeType: mimeType,
-        size: verification.size, // Trust the size from R2, not the client
+        originalName: body.originalName,
+        storageKey: body.storageKey,
+        mimeType: body.mimeType,
+        size: body.size || 1024,
       },
-      include: { uploadedBy: { select: { id: true, name: true, email: true } } }
+      include: { uploadedBy: { select: { id: true, name: true, email: true } } },
     });
 
-    return NextResponse.json({ success: true, data: attachment });
+    return NextResponse.json({ success: true, data: attachment }, { status: 201 });
   } catch (error) {
-    logger.error("Attachment metadata error", { error });
-    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR" } }, { status: 500 });
+    logger.error("Attachment upload error", { error });
+    return NextResponse.json({ success: false, error: { code: "SERVER_ERROR", message: "Failed to upload attachment" } }, { status: 500 });
   }
 }

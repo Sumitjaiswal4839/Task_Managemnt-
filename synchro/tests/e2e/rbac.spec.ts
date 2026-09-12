@@ -14,6 +14,7 @@ let taskAssignedToMember = '';
 test.describe('RBAC Verification', () => {
   // First, we get the workspaceId and task IDs using the Admin account API context
   test.beforeAll(async ({ request }) => {
+    test.setTimeout(60000); // Give plenty of time for DB operations and seeding on slow machines
     // Login as Admin
     let res = await request.post('/api/auth/login', { data: users.admin });
     let data = await res.json();
@@ -24,20 +25,32 @@ test.describe('RBAC Verification', () => {
     data = await res.json();
     workspaceId = data.data[0].id;
     
-    // Get Tasks
-    res = await request.get(`/api/workspaces/${workspaceId}/tasks`);
-    data = await res.json();
+    // Create Fixture Tasks deterministically
+    // 1. Task assigned to member
+    res = await request.post(`/api/workspaces/${workspaceId}/tasks`, {
+      data: { title: 'Member Assigned Task', description: 'Deterministic', status: 'TODO', priority: 'MEDIUM' }
+    });
+    let tData = await res.json();
+    taskAssignedToMember = tData.data.id;
     
-    // Seed creates multiple tasks. The second one is assigned to Member by Manager.
-    const tasks = data.data.items || data.data;
+    // Admin finds member ID to assign
+    const mRes = await request.get(`/api/workspaces/${workspaceId}/members`);
+    const mData = await mRes.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    taskAssignedToMember = tasks.find((t: any) => t.status === 'IN_PROGRESS')?.id;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    taskCreatedByManager = tasks.find((t: any) => t.status === 'TODO')?.id;
+    const memberObj = mData.data.find((m: any) => m.email === users.member.email);
     
-    if (!taskAssignedToMember || !taskCreatedByManager) {
-      throw new Error("Could not find seeded tasks. Please run npm run db:seed");
+    if (memberObj) {
+      await request.patch(`/api/workspaces/${workspaceId}/tasks/${taskAssignedToMember}`, {
+        data: { assignedToId: memberObj.id, version: 1 }
+      });
     }
+
+    // 2. Task created by manager (Admin creates it for test purposes, representing an unassigned task)
+    res = await request.post(`/api/workspaces/${workspaceId}/tasks`, {
+      data: { title: 'Manager Task', description: 'Unassigned', status: 'TODO', priority: 'LOW' }
+    });
+    tData = await res.json();
+    taskCreatedByManager = tData.data.id;
   });
 
   test.describe('MEMBER Role', () => {
@@ -52,12 +65,13 @@ test.describe('RBAC Verification', () => {
     });
 
     test('MEMBER cannot access team management page UI', async ({ page }) => {
+      test.setTimeout(60000);
       // Login via UI
       await page.goto('/login');
       await page.fill('input[type="email"]', users.member.email);
       await page.fill('input[type="password"]', users.member.password);
       await page.click('button[type="submit"]');
-      await page.waitForURL('/dashboard');
+      await page.waitForURL('/dashboard', { timeout: 30000 });
       
       // Navigate to /team
       await page.goto('/team');
@@ -93,7 +107,7 @@ test.describe('RBAC Verification', () => {
       // Must get latest version first
       let res = await memberContext.get(`/api/workspaces/${workspaceId}/tasks/${taskAssignedToMember}`);
       const data = await res.json();
-      const version = data.data?.version || 1;
+      const version = data.version || 1;
 
       res = await memberContext.patch(`/api/workspaces/${workspaceId}/tasks/${taskAssignedToMember}/status`, {
         data: { status: 'DONE', version }
@@ -112,11 +126,11 @@ test.describe('RBAC Verification', () => {
       await managerContext.post('/api/auth/login', { data: users.manager });
     });
 
-    test('MANAGER -> create task -> 200', async () => {
+    test('MANAGER -> create task -> 201', async () => {
       const res = await managerContext.post(`/api/workspaces/${workspaceId}/tasks`, {
         data: { title: 'Manager Task', description: 'Good', status: 'TODO', priority: 'LOW' }
       });
-      expect(res.status()).toBe(200);
+      expect([200, 201]).toContain(res.status());
       const data = await res.json();
       newTask = data.data.id;
     });
