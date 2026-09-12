@@ -1,7 +1,8 @@
 [build]
   base = "synchro"
-  command = "npm run build"
+  command = "npx prisma generate && npm run build"
   publish = ".next"
+
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

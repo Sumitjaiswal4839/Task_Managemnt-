@@ -1,7 +1,80 @@
-Copyright (c) 2026 Sumit Jaiswal. All rights reserved.
+SYNCHRO — ALL RIGHTS RESERVED
 
-This repository and its source code are provided strictly for project evaluation, academic review, and portfolio purposes.
+Copyright (c) 2026 Sumit Jaiswal
+Project: Synchro — Collaborative Task Management
 
-No permission is granted to copy, modify, distribute, publish, sublicense, sell, or use this software or substantial portions of it for commercial purposes, re-branding, or uncredited republication without prior written permission from the copyright holder.
+All rights reserved.
 
-All trademarks, architecture designs, and original implementations remain the exclusive intellectual property of Sumit Jaiswal.
+1. PURPOSE
+
+This repository contains the source code and related materials for
+"Synchro — Collaborative Task Management", an original project
+designed and developed by Sumit Jaiswal.
+
+The repository is publicly available for project evaluation,
+educational review, and portfolio/reference purposes.
+
+2. PERMITTED USE
+
+You are permitted to:
+
+- View and inspect the source code.
+- Study the implementation for educational purposes.
+- Review the project for evaluation purposes.
+- Reference the project as an example of software development work.
+
+These permissions do not transfer ownership of the source code or
+grant permission to redistribute, republish, or create derivative
+works from the project.
+
+3. RESTRICTIONS
+
+Unless you have received prior written permission from the copyright
+holder, you may not:
+
+- Copy or redistribute the source code or substantial portions of it.
+- Republish the source code, in whole or in substantial part.
+- Present the project or substantial portions of its implementation
+  as your own original work.
+- Remove, obscure, or alter the original author attribution.
+- Publish a substantially derived version of this project under
+  another name or repository.
+- Incorporate substantial portions of this implementation into
+  another public or commercial project.
+- Sell, sublicense, or commercially distribute the source code or
+  substantial portions of it.
+
+4. DERIVATIVE WORKS
+
+Creating a substantially modified or derivative version of this
+project for public distribution requires prior written permission
+from the copyright holder.
+
+Minor modifications made solely for personal learning or local
+experimentation do not constitute permission to redistribute the
+modified source code.
+
+5. THIRD-PARTY COMPONENTS
+
+This notice applies only to original work contained in this
+repository that is owned by the copyright holder.
+
+Third-party libraries, frameworks, dependencies, assets, trademarks,
+and other materials remain subject to their respective licenses and
+terms. Nothing in this notice is intended to override those
+third-party licenses.
+
+6. NO TRANSFER OF OWNERSHIP
+
+Making this repository publicly accessible does not transfer,
+assign, or otherwise grant ownership of the project or its original
+source code to any other person or organization.
+
+7. PERMISSION REQUESTS
+
+Requests for permission to reuse, redistribute, publish, or
+substantially modify this project should be directed to the
+copyright holder.
+
+Copyright (c) 2026 Sumit Jaiswal
+All rights reserved.

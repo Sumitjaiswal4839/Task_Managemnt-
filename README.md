@@ -10,7 +10,7 @@
 > ### 🛡️ Author & Ownership Notice
 > **Author:** Sumit Jaiswal  
 > **Repository:** Original Implementation & Full-Stack Challenge Submission  
-> **Notice:** This repository and its source code are published strictly for project evaluation, academic review, and portfolio demonstration. Unless explicitly authorized in writing, this codebase is not licensed for public redistribution, commercial re-branding, or uncredited republication. See [LICENSE](LICENSE) for details.
+> **Usage:** This repository is publicly accessible strictly for project evaluation, educational review, and portfolio demonstration. The original source code and architecture are protected under an All-Rights-Reserved policy. No permission is granted for redistribution, derivative works, commercial exploitation, or uncredited republication. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
 
 ---
 
@@ -19,7 +19,7 @@
 
 **The Solution:** A lightweight, highly responsive Jira/Trello alternative offering zero-trust server-side validation, optimistic concurrency control (OCC), and a unified workspace experience.
 
-**Implementation:** Built using Next.js 15 for a lightning-fast React frontend, Prisma + PostgreSQL (Neon) for robust relational data management, Cloudinary for secure workspace-scoped asset storage, and Pusher for sub-second realtime syncing.
+**Implementation:** Built using Next.js 16 for a lightning-fast React frontend, Prisma + PostgreSQL (Neon) for robust relational data management, Cloudinary for secure workspace-scoped asset storage, and Pusher for sub-second realtime syncing.
 
 **The Result:** A highly secure, visually stunning task management platform where teams can assign tasks, upload attachments, and track real-time activity in a seamless environment.
 
@@ -72,7 +72,7 @@ graph TD
 - **End-to-End (E2E) Testing:** Playwright configured for testing complete user journeys across the authentication pipeline, RBAC enforcement, and dashboard rendering.
 
 ## 🚀 8. Deployment
-- **Frontend & APIs:** Netlify / Vercel (Next.js serverless functions).
+- **Frontend & APIs:** Netlify (Next.js serverless functions).
 - **PostgreSQL Hosting:** Neon DB with connection pooling.
 - **Media / Attachment Storage:** Cloudinary.
 - **Realtime WebSockets:** Pusher Channels.
