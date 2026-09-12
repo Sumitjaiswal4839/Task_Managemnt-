@@ -64,7 +64,7 @@ export default function TaskDetailModal({
 
   const fetchTaskDetails = useCallback(async () => {
     try {
-      const res = await fetch(`/api/tasks/${taskId}`);
+      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`);
       if (res.ok) {
         const data = await res.json();
         setTask(data.data);
@@ -98,7 +98,7 @@ export default function TaskDetailModal({
     setCommentLoading(true);
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}/comments`, {
+      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: newComment.trim() }),
@@ -219,7 +219,7 @@ export default function TaskDetailModal({
     setSavingEdit(true);
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -255,7 +255,7 @@ export default function TaskDetailModal({
     if (!confirm("Are you sure you want to permanently delete this task?")) return;
 
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+      const res = await fetch(`/api/workspaces/${workspaceId}/tasks/${taskId}`, { method: "DELETE" });
       if (res.ok) {
         onTaskUpdated();
         onClose();

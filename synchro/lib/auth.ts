@@ -2,7 +2,10 @@ import jwt from "jsonwebtoken";
 import argon2 from "argon2";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = process.env.JWT_SECRET || "synchro_super_secret_jwt_key_at_least_32_characters_long_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 const COOKIE_NAME = "synchro_token";
 
 export interface SessionUser {
@@ -24,12 +27,12 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function signToken(payload: SessionUser): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(payload, JWT_SECRET as string, { expiresIn: "7d" });
 }
 
 export function verifyToken(token: string): SessionUser | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as SessionUser;
+    return jwt.verify(token, JWT_SECRET as string) as SessionUser;
   } catch {
     return null;
   }

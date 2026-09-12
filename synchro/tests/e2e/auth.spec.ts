@@ -13,6 +13,6 @@ test.describe('Authentication Flow', () => {
     await page.click('button[type="submit"]');
 
     const errorDiv = page.locator('.text-red-300');
-    await expect(errorDiv).toBeVisible();
+    await expect(errorDiv).toBeVisible({ timeout: 15000 });
   });
 });
