@@ -38,6 +38,29 @@ export async function POST(
 
     const { content } = result.data;
 
+    const task = await prisma.task.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Task not found in this workspace",
+          },
+        },
+        { status: 404 }
+      );
+    }
+
     // Create Comment
     const comment = await prisma.comment.create({
       data: {
@@ -122,6 +145,29 @@ export async function GET(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { workspaceId, id } = await params;
+
+    const task = await prisma.task.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Task not found in this workspace",
+          },
+        },
+        { status: 404 }
+      );
+    }
 
     const comments = await prisma.comment.findMany({
       where: { taskId: id },

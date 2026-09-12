@@ -15,6 +15,27 @@ export async function POST(
     const membership = await getWorkspaceMembership(session.id, workspaceId);
     if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
 
+    const task = await prisma.task.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+      select: { id: true },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Task not found in this workspace",
+          },
+        },
+        { status: 404 }
+      );
+    }
+
     await prisma.taskWatcher.upsert({
       where: {
         taskId_userId: {
@@ -47,6 +68,27 @@ export async function DELETE(
     const { workspaceId, id } = await params;
     const membership = await getWorkspaceMembership(session.id, workspaceId);
     if (!membership) return NextResponse.json({ success: false, error: { code: "FORBIDDEN" } }, { status: 403 });
+
+    const task = await prisma.task.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+      select: { id: true },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Task not found in this workspace",
+          },
+        },
+        { status: 404 }
+      );
+    }
 
     await prisma.taskWatcher.deleteMany({
       where: {

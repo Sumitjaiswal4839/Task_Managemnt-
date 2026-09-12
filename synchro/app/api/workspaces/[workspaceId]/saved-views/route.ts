@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getWorkspaceMembership } from "@/lib/rbac";
 import { z } from "zod";
 
 const SavedViewSchema = z.object({
@@ -25,6 +26,20 @@ export async function POST(
 
     const { name, query } = result.data;
     const { workspaceId } = await params;
+
+    const membership = await getWorkspaceMembership(user.id, workspaceId);
+    if (!membership) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You do not have access to this workspace",
+          },
+        },
+        { status: 403 }
+      );
+    }
 
     const savedView = await prisma.savedView.create({
       data: {
@@ -51,6 +66,20 @@ export async function GET(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { workspaceId } = await params;
+
+    const membership = await getWorkspaceMembership(user.id, workspaceId);
+    if (!membership) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You do not have access to this workspace",
+          },
+        },
+        { status: 403 }
+      );
+    }
 
     const savedViews = await prisma.savedView.findMany({
       where: {
